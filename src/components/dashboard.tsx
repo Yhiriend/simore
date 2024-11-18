@@ -29,12 +29,18 @@ import {
 } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
 import React from "react";
+import senderSms from "../services/sender-message.service";
+import { jsPDF } from "jspdf";
+import "jspdf-autotable";
+import UserDropdown from "../hooks/user-dropdown";
+import { useNavigate } from "react-router-dom";
 enum alertLevelEnum {
   LOW = "BAJA",
   MID = "MEDIA",
   HIGH = "ALTA",
   CRITIC = "CRITICA",
 }
+
 export function DashboardComponent() {
   const getTwoDaysAgo = () => {
     const today = new Date();
@@ -60,21 +66,50 @@ export function DashboardComponent() {
       date: getTwoDaysAgo(),
     },
   ];
-
   const [activeTab, setActiveTab] = useState("overview");
   const [alerts, setAlerts] = useState([...defaultAlerts]);
   const [averageVoltage, setAverageVoltage] = useState("0");
   const [averageCurrent, setAverageCurrent] = useState("0");
-
+  const navigate = useNavigate();
   const [alertCount, setAlertCount] = useState(0);
 
   const [voltageData, setVoltageData] = useState([
-    { time: "00:00:00", voltage: 220 },
-    { time: "01:00:00", voltage: 218 },
-    { time: "02:00:00", voltage: 221 },
-    { time: "03:00:00", voltage: 219 },
-    { time: "04:00:00", voltage: 220 },
-    { time: "05:00:00", voltage: 217 },
+    {
+      date: new Date().toLocaleDateString("en-US"),
+      time: "00:00:00",
+      voltage: 220,
+      location: "Sector Norte, Transformador #1",
+    },
+    {
+      date: new Date().toLocaleDateString("en-US"),
+      time: "01:00:00",
+      voltage: 218,
+      location: "Sector Norte, Transformador #1",
+    },
+    {
+      date: new Date().toLocaleDateString("en-US"),
+      time: "02:00:00",
+      voltage: 221,
+      location: "Sector Norte, Transformador #1",
+    },
+    {
+      date: new Date().toLocaleDateString("en-US"),
+      time: "03:00:00",
+      voltage: 219,
+      location: "Sector Norte, Transformador #1",
+    },
+    {
+      date: new Date().toLocaleDateString("en-US"),
+      time: "04:00:00",
+      voltage: 220,
+      location: "Sector Norte, Transformador #1",
+    },
+    {
+      date: new Date().toLocaleDateString("en-US"),
+      time: "05:00:00",
+      voltage: 217,
+      location: "Sector Norte, Transformador #1",
+    },
   ]);
 
   const [currentData, setCurrentData] = useState([
@@ -86,20 +121,20 @@ export function DashboardComponent() {
     { time: "05:00:00", current: 11 },
   ]);
 
-  const generateAlert = () => {
-    const alertLevels = [
-      alertLevelEnum.LOW,
-      alertLevelEnum.MID,
-      alertLevelEnum.HIGH,
-      alertLevelEnum.CRITIC,
-    ];
-    const locations = [
-      "Sector Norte, Transformador #1",
-      "Sector Sur, Transformador #5",
-      "Sector Este, Subestación Principal",
-      "Sector Oeste, Transformador #3",
-    ];
+  const alertLevels = [
+    alertLevelEnum.LOW,
+    alertLevelEnum.MID,
+    alertLevelEnum.HIGH,
+    alertLevelEnum.CRITIC,
+  ];
+  const locations = [
+    "Sector Norte, Transformador #1",
+    "Sector Sur, Transformador #5",
+    "Sector Este, Subestación Principal",
+    "Sector Oeste, Transformador #3",
+  ];
 
+  const generateAlert = async () => {
     const newAlert = {
       level: alertLevels[Math.floor(Math.random() * alertLevels.length)],
       location: locations[Math.floor(Math.random() * locations.length)],
@@ -108,6 +143,11 @@ export function DashboardComponent() {
 
     setAlerts((prevAlerts) => [...prevAlerts, newAlert]);
     setAlertCount((prevCount) => prevCount + 1);
+
+    // senderSms.sendSms({
+    //   to: "+573213119045",
+    //   message: `¡Alerta! Intermitencia en ${newAlert.location}`,
+    // });
   };
 
   const calculateAverage = (data, key) => {
@@ -129,7 +169,12 @@ export function DashboardComponent() {
       setVoltageData((prevData) => {
         const updatedData = [
           ...prevData,
-          { time: newTime, voltage: newVoltage },
+          {
+            date: new Date().toLocaleDateString("en-US"),
+            time: newTime,
+            voltage: newVoltage,
+            location: locations[Math.floor(Math.random() * locations.length)],
+          },
         ];
         return updatedData.slice(-10);
       });
@@ -165,13 +210,10 @@ export function DashboardComponent() {
   function getTimeDifference(date: Date): string {
     const currentDate = new Date();
 
-    // Convertir las fechas a timestamps para calcular la diferencia
     const differenceMs = currentDate.getTime() - date.getTime();
 
-    // Convertir la diferencia a minutos
     const differenceMinutes = Math.floor(differenceMs / 60000);
 
-    // Determinar el texto a mostrar
     if (differenceMinutes < 1) {
       return "Hace menos de un minuto";
     } else if (differenceMinutes < 60) {
@@ -190,15 +232,59 @@ export function DashboardComponent() {
     return copy.reverse();
   };
 
+  const handleDownloadPDF = () => {
+    const doc = new jsPDF();
+
+    const dataExtract = voltageData.map((v) => {
+      const c = currentData.find((current) => current.time === v.time);
+      return [v.date, v.voltage, c.current, c.current > 9 ? "CRÍTICO" : "OK"];
+    });
+
+    doc.setFont("Helvetica", "bold");
+    doc.setFontSize(16);
+    doc.text("Informe Mensual de Rendimiento de la Red Eléctrica", 20, 20);
+
+    doc.setFont("Helvetica", "normal");
+    doc.setFontSize(12);
+    doc.text("Ubicación: Lorica, Córdoba, Colombia", 20, 30);
+    doc.text("Fecha: Noviembre 2024", 20, 40);
+
+    const tableData = [
+      ["Fecha", "Voltaje (V)", "Corriente (A)", "Estado"],
+      ...dataExtract,
+    ];
+
+    doc.autoTable({
+      head: [tableData[0]],
+      body: tableData.slice(1),
+      startY: 50,
+      theme: "grid",
+      headStyles: { fillColor: [22, 160, 133] },
+      bodyStyles: { fontSize: 10 },
+    });
+
+    doc.save("informe_red_electrica.pdf");
+  };
+
   return (
     <div className="flex flex-col h-screen">
       <header className="flex justify-between items-center p-4 bg-background border-b">
         <h1 className="text-2xl font-bold">
           Sistema de Monitoreo de Red Eléctrica
         </h1>
-        <Button variant="outline">
-          <Bell className="mr-2 h-4 w-4" /> Notificaciones
-        </Button>
+        <div className="flex items-center gap-4">
+          <Button variant="outline">
+            <Bell className="mr-2 h-4 w-4" /> Notificaciones
+          </Button>
+          <UserDropdown
+            userEmail="jhoen.doe@email.com"
+            userName="Jhoen Doe"
+            onLogout={() => {
+              navigate("/login");
+            }}
+            onOpenSettings={() => {}}
+          ></UserDropdown>
+        </div>
       </header>
 
       <main className="flex-grow p-6 overflow-auto">
@@ -386,42 +472,6 @@ export function DashboardComponent() {
                       </li>
                     );
                   })}
-                  {/* <li className="flex items-center space-x-4">
-                    <AlertTriangle className="h-6 w-6 text-yellow-500" />
-                    <div>
-                      <p className="font-medium">Intermitencia detectada</p>
-                      <p className="text-sm text-muted-foreground">
-                        Sector Norte, Transformador #3
-                      </p>
-                    </div>
-                    <span className="ml-auto text-sm text-muted-foreground">
-                      Hace 5 min
-                    </span>
-                  </li>
-                  <li className="flex items-center space-x-4">
-                    <AlertTriangle className="h-6 w-6 text-red-500" />
-                    <div>
-                      <p className="font-medium">Fallo de comunicación</p>
-                      <p className="text-sm text-muted-foreground">
-                        Sensor #12, Área Industrial
-                      </p>
-                    </div>
-                    <span className="ml-auto text-sm text-muted-foreground">
-                      Hace 1 hora
-                    </span>
-                  </li>
-                  <li className="flex items-center space-x-4">
-                    <AlertTriangle className="h-6 w-6 text-orange-500" />
-                    <div>
-                      <p className="font-medium">Voltaje anormal</p>
-                      <p className="text-sm text-muted-foreground">
-                        Subestación Este
-                      </p>
-                    </div>
-                    <span className="ml-auto text-sm text-muted-foreground">
-                      Hace 3 horas
-                    </span>
-                  </li> */}
                 </ul>
               </CardContent>
             </Card>
@@ -443,9 +493,15 @@ export function DashboardComponent() {
                       <p className="font-medium">
                         Informe Mensual de Rendimiento
                       </p>
-                      <p className="text-sm text-muted-foreground">Mayo 2024</p>
+                      <p className="text-sm text-muted-foreground">
+                        Noviembre 2024
+                      </p>
                     </div>
-                    <Button variant="outline" className="ml-auto">
+                    <Button
+                      onClick={handleDownloadPDF}
+                      variant="outline"
+                      className="ml-auto"
+                    >
                       Ver
                     </Button>
                   </li>

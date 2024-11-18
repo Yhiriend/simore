@@ -242,12 +242,27 @@ const ChartTooltipContent = React.forwardRef<
                         <span className="text-muted-foreground">
                           {itemConfig?.label || item.name}
                         </span>
+                        {Object.keys(item.payload).map((key) => {
+                          if (key === "value" || !item.payload[key]) {
+                            return null;
+                          }
+
+                          const value = item.payload[key];
+                          return (
+                            <div className="text-xs text-foreground" key={key}>
+                              <strong>
+                                {key.charAt(0).toUpperCase() + key.slice(1)}:
+                              </strong>{" "}
+                              {value}
+                            </div>
+                          );
+                        })}
                       </div>
-                      {item.value && (
+                      {/* {item.value && (
                         <span className="font-mono font-medium tabular-nums text-foreground">
                           {item.value.toLocaleString()}
                         </span>
-                      )}
+                      )} */}
                     </div>
                   </>
                 )}
