@@ -11,7 +11,6 @@ import {
 } from "./ui/card";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { useToast } from "../hooks/use-toast";
 import React from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -23,11 +22,9 @@ export function LoginViewComponent() {
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    // Here you would typically handle the login logic
     console.log("Login attempted with:", username);
 
-    // Simulating an API call
-    //await new Promise((resolve) => setTimeout(resolve, 1000));
+    // await new Promise((resolve) => setTimeout(resolve, 1000));
     if (username === "testdev@email.com" && password === "123456") {
       navigate("/");
     }

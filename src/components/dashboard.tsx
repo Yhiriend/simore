@@ -145,7 +145,7 @@ export function DashboardComponent() {
     setAlertCount((prevCount) => prevCount + 1);
 
     // senderSms.sendSms({
-    //   to: "+573213119045",
+    //   to: "+573022263001",
     //   message: `¡Alerta! Intermitencia en ${newAlert.location}`,
     // });
   };
